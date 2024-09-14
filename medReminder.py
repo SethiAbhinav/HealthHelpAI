@@ -1,10 +1,14 @@
 import streamlit as st
 import pandas as pd
-from PIL import Image
+# from PIL import Image
 import hashlib
 import sqlite3
 from datetime import datetime, timedelta
 import logging
+
+# Logging setup
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 # Initialize session state
 if 'user' not in st.session_state:
@@ -20,19 +24,16 @@ c = conn.cursor()
 
 # Create tables
 c.execute('''CREATE TABLE IF NOT EXISTS users
-             (username TEXT PRIMARY KEY, password TEXT)''')
+             (username TEXT PRIMARY KEY, password TEXT)''') #mobile, gen, age
 c.execute('''CREATE TABLE IF NOT EXISTS medications
              (id INTEGER PRIMARY KEY, username TEXT, name TEXT, dosage TEXT, time TEXT, stock INTEGER, next_dose DATETIME)''')
 conn.commit()
 logger.debug("Database tables created or checked.")
 
-# Logging setup
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
 
 def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
     logger.debug("Password hashed successfully.")
+    return hashlib.sha256(password.encode()).hexdigest()
 
 def authenticate(username, password):
     c.execute("SELECT * FROM users WHERE username=? AND password=?", (username, hash_password(password)))
