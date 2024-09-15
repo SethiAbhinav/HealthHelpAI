@@ -6,6 +6,8 @@ import sqlite3
 from datetime import datetime, timedelta
 import logging
 from mindsdb_integration import setup_mindsdb
+import base64
+from read_presc import read_presc
 
 # Logging setup
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -36,9 +38,14 @@ conn.commit()
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
+
 def authenticate(username, password):
     c.execute("SELECT * FROM users WHERE username=? AND password=?", (username, hash_password(password)))
-    return c.fetchone()
+    user = c.fetchone()
+    if user:
+        logger.info(f"User {username} authenticated successfully.")
+    return user
+    
 
 def register_user(username, password, name, dob, phone, diseases):
     try:
@@ -49,17 +56,44 @@ def register_user(username, password, name, dob, phone, diseases):
     except sqlite3.IntegrityError:
         return False
 
+
 def save_medication(username, name, dosage, time, stock):
-    next_dose = datetime.now().replace(hour=time.hour, minute=time.minute, second=0, microsecond=0)
-    if next_dose <= datetime.now():
-        next_dose += timedelta(days=1)
+    next_dose = None
+    if time:  # Check if time is not empty
+        # Convert time strings to datetime objects
+        time_objects = [datetime.now().replace(hour=int(t.split(':')[0]), minute=int(t.split(':')[1]), second=0, microsecond=0) for t in time]
+        # Find the nearest next dose time
+        next_dose = min([t for t in time_objects if t > datetime.now()], default=None)
+        if next_dose is None:  # If no future time found, add a day
+            next_dose = min(time_objects) + timedelta(days=1)
+
+    print("next_dose save_med",type(next_dose),next_dose)
+    # if time:
+    #     next_dose = datetime.now().replace(hour=time.hour, minute=time.minute, second=0, microsecond=0)
+    #     if next_dose <= datetime.now():
+    #         next_dose += timedelta(days=1)
+    # c.execute("INSERT INTO medications (username, name, dosage, time, stock, next_dose) VALUES (?, ?, ?, ?, ?, ?)",
+    #           (username, name, dosage, time.strftime("%H:%M") if time else None, stock, next_dose))
+    
+    time_str = ','.join(time) if isinstance(time, list) else time
+
     c.execute("INSERT INTO medications (username, name, dosage, time, stock, next_dose) VALUES (?, ?, ?, ?, ?, ?)",
-              (username, name, dosage, time.strftime("%H:%M"), stock, next_dose))
+              (username, name, dosage, time_str, stock, next_dose))
+
     conn.commit()
+
+def delete_medication(med_id):
+    c.execute("DELETE FROM medications WHERE id = ?", (med_id,))
+    conn.commit()
+    logger.info(f"Medication with ID {med_id} deleted.")
 
 def get_medications(username):
     c.execute("SELECT * FROM medications WHERE username=?", (username,))
-    return c.fetchall()
+    medications = c.fetchall()
+    print(medications)
+    if medications:
+        logger.info(f"Retrieved medications for user {username}.")
+    return medications
 
 def update_medication_stock(med_id, new_stock):
     c.execute("UPDATE medications SET stock = ? WHERE id = ?", (new_stock, med_id))
@@ -68,6 +102,8 @@ def update_medication_stock(med_id, new_stock):
 def update_next_dose(med_id, next_dose):
     c.execute("UPDATE medications SET next_dose = ? WHERE id = ?", (next_dose, med_id))
     conn.commit()
+    logger.info(f"Next dose updated for medication with ID {med_id}.")
+
 
 def login_page():
     st.title("Med Reminder App")
@@ -128,11 +164,33 @@ def register_page():
         logger.info(f"User navigated back to login page from register page.")
 
 def process_image(image):
-    # This is a placeholder function for image processing
-    st.write("Image processing for medication information extraction is not implemented in this example.")
-    st.write("Please enter the medication information manually.")
-    logger.info("Image processing not implemented. Manual input required.")
-    return None, None, None
+    import io
+    buffered = io.BytesIO()
+    image.save(buffered, format="PNG")
+    image_bytes = buffered.getvalue()  # Get the byte data
+
+
+    # Convert the uploaded image to medication names using read_presc
+
+    # Convert image to base64
+    # encoded_string = base64.b64encode(buffered.getvalue()).decode('utf-8')
+
+    # medication_names = read_presc(encoded_string)
+    
+    prescription_dict = read_presc(image_bytes)
+    medication_names = prescription_dict['medication_names']
+    dosage = prescription_dict['total_dose_per_day']
+    dosage_time = prescription_dict['dose_time']
+
+
+    if medication_names:
+        logger.info("Medication names populated from image.")
+    else:
+        medication_names = []
+        logger.warning("No medication names found in the image.")
+    
+    # Return the list of medication names
+    return medication_names, dosage, dosage_time
 
 def input_selection_page():
     st.title("Add New Medication")
@@ -153,6 +211,7 @@ def input_selection_page():
         st.rerun()
         logger.info("User navigated back to home page from input selection.")
 
+
 def upload_image_page():
     st.title("Upload Medication Image")
     
@@ -160,15 +219,19 @@ def upload_image_page():
     if uploaded_file:
         image = Image.open(uploaded_file)
         st.image(image, caption="Uploaded Image", use_column_width=True)
-        med_name, dosage, dosage_time = process_image(image)
+        medication_names, dosage, dosage_times = process_image(image)
+        stock = None
+        if medication_names:
+            for med_name, dose, dosage_time in zip(medication_names,dosage, dosage_times):
+                save_medication(st.session_state.user, med_name, dose, dosage_time, stock)
+
+            st.success("Medications saved successfully!")
+            logger.info("Medications saved from image.")
+        else:
+            st.error("No medications found in the image.")
         
-        # After processing, move to the form page to confirm or edit the information
-        st.session_state.med_name = med_name
-        st.session_state.dosage = dosage
-        st.session_state.dosage_time = dosage_time
-        st.session_state.page = "fill_form"
+        st.session_state.page = "home"
         st.rerun()
-        logger.info("Image uploaded and processed for medication information.")
     
     if st.button("Back"):
         st.session_state.page = "input_selection"
@@ -180,7 +243,7 @@ def fill_form_page():
     
     med_name = st.text_input("Medication Name", value=st.session_state.get('med_name', ''))
     dosage = st.text_input("Dosage Quantity", value=st.session_state.get('dosage', ''))
-    dosage_time = st.time_input("Dosage Time", value=st.session_state.get('dosage_time', datetime.now().time()))
+    dosage_time = st.time_input("Dosage Time", value=st.session_state.get('dosage_time', ''))
     stock = st.number_input("Stock (number of tablets/doses)", min_value=0, step=1, value=0)
     is_valid = True
     if st.button("Save Medication"):
@@ -213,10 +276,6 @@ def fill_form_page():
         st.rerun()
         logger.info("User navigated back to input selection from fill form page.")
 
-def delete_medication(med_id):
-    c.execute("DELETE FROM medications WHERE id = ?", (med_id,))
-    conn.commit()
-    logger.info(f"Medication with ID {med_id} deleted.")
 
 def home_page():
     st.title(f"Welcome to Med Reminder, {st.session_state.name}!")
@@ -243,6 +302,8 @@ def home_page():
     if medications:
         for med in medications:
             med_id, _, name, dosage, time, stock, next_dose = med
+            print("next_dose homepage",type(next_dose),next_dose)
+
             col1, col2, col3 = st.columns(3)
             with col1:
                 st.subheader(name)
@@ -255,13 +316,25 @@ def home_page():
                     update_medication_stock(med_id, new_stock)
                     st.success(f"Stock updated for {name}")
                     logger.info(f"Stock updated for {name} to {new_stock}.")
+            
             with col3:
                 st.write(f"Next dose: {next_dose}")
                 if st.button(f"Take dose of {name}"):
                     if stock > 0:
                         new_stock = stock - 1
                         update_medication_stock(med_id, new_stock)
-                        next_dose = datetime.strptime(str(next_dose), "%Y-%m-%d %H:%M:%S") + timedelta(days=1)
+                        # next_dose = datetime.strptime(str(next_dose), "%Y-%m-%d %H:%M:%S") + timedelta(days=1)
+                        # Convert time strings to datetime objects
+                        time_list = time.split(',')
+                        time_objects = [datetime.now().replace(hour=int(t.split(':')[0]), minute=int(t.split(':')[1]), second=0, microsecond=0) for t in time_list]
+                        # Find the nearest next dose time
+                        if isinstance(next_dose, str):
+                            next_dose = datetime.strptime(next_dose, "%Y-%m-%d %H:%M:%S")
+
+                        next_dose = min([t for t in time_objects if t > next_dose], default=None)
+                        if next_dose is None:  # If no future time found, add a day
+                            next_dose = min(time_objects) + timedelta(days=1)
+
                         update_next_dose(med_id, next_dose)
                         st.success(f"Dose taken. Stock updated to {new_stock}")
                         logger.info(f"Dose taken for {name}. Stock updated to {new_stock}.")

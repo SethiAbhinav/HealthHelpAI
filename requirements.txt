@@ -3,3 +3,5 @@ pandas==2.2.2
 Pillow==10.4.0
 sqlite==3.45.3
 together==1.2.12 
+
+openai==1.45.0
