@@ -8,6 +8,7 @@ import logging
 from mindsdb_integration import setup_mindsdb
 import base64
 from read_presc import read_presc
+import query_handler
 
 # Logging setup
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -98,6 +99,12 @@ def get_medications(username):
 def update_medication_stock(med_id, new_stock):
     c.execute("UPDATE medications SET stock = ? WHERE id = ?", (new_stock, med_id))
     conn.commit()
+
+def update_medication_time(med_id, new_time):
+    c.execute("UPDATE medications SET time = ? WHERE id = ?", (new_time, med_id))
+    conn.commit()
+    logger.info(f"Time updated for medication with ID {med_id}.")
+
    
 def update_next_dose(med_id, next_dose):
     c.execute("UPDATE medications SET next_dose = ? WHERE id = ?", (next_dose, med_id))
@@ -243,7 +250,7 @@ def fill_form_page():
     
     med_name = st.text_input("Medication Name", value=st.session_state.get('med_name', ''))
     dosage = st.text_input("Dosage Quantity", value=st.session_state.get('dosage', ''))
-    dosage_time = st.time_input("Dosage Time", value=st.session_state.get('dosage_time', ''))
+    dosage_time = st.time_input("Dosage Time", value=st.session_state.get('dosage_time', datetime.now()))
     stock = st.number_input("Stock (number of tablets/doses)", min_value=0, step=1, value=0)
     is_valid = True
     if st.button("Save Medication"):
@@ -267,7 +274,6 @@ def fill_form_page():
             save_medication(st.session_state.user, med_name, dosage, dosage_time, stock)
             st.success("Medication saved successfully!")
             st.session_state.page = "home"
-            setup_mindsdb()
             logger.info(f"Medication {med_name} saved for user {st.session_state.user}.")
             st.rerun()
 
@@ -275,7 +281,6 @@ def fill_form_page():
         st.session_state.page = "input_selection"
         st.rerun()
         logger.info("User navigated back to input selection from fill form page.")
-
 
 def home_page():
     st.title(f"Welcome to Med Reminder, {st.session_state.name}!")
@@ -308,11 +313,18 @@ def home_page():
             with col1:
                 st.subheader(name)
                 st.write(f"Dosage: {dosage}")
-                # st.write(f"Time: {time}")
-                # Editable time input
                 time_list = time.split(',')
                 time_inputs = [st.time_input(f"Time for {name}", value=datetime.strptime(t, "%H:%M").time(), key=f"time_{med_id}_{i}") for i, t in enumerate(time_list)]
-          
+                if st.button(f"Update Time for {name}"):
+                    new_time_str = ','.join([t.strftime("%H:%M") for t in time_inputs])
+                    update_medication_time(med_id, new_time_str)
+                    time_objects = [datetime.now().replace(hour=int(t.split(':')[0]), minute=int(t.split(':')[1]), second=0, microsecond=0) for t in time_list]
+                    next_dose = min([t for t in time_objects if t > datetime.now()], default=None)
+                    if next_dose is None:
+                        next_dose = min(time_objects) + timedelta(days=1)
+                    update_next_dose(med_id, next_dose)
+                    st.success(f"Time updated for {name}")
+                    logger.info(f"Time updated for {name} to {new_time_str}.")
             with col2:
                 st.write(f"Stock: {stock}")
                 new_stock = st.number_input(f"Update stock for {name}", min_value=0, value=stock, step=1, key=f"stock_{med_id}")
@@ -324,10 +336,9 @@ def home_page():
             with col3:
                 st.write(f"Next dose: {next_dose}")
                 if st.button(f"Take dose of {name}"):
-                    if stock > 0:
+                    if stock is not None and stock > 0:
                         new_stock = stock - 1
                         update_medication_stock(med_id, new_stock)
-                        # next_dose = datetime.strptime(str(next_dose), "%Y-%m-%d %H:%M:%S") + timedelta(days=1)
                         # Convert time strings to datetime objects
                         time_list = time.split(',')
                         time_objects = [datetime.now().replace(hour=int(t.split(':')[0]), minute=int(t.split(':')[1]), second=0, microsecond=0) for t in time_list]
@@ -355,6 +366,15 @@ def home_page():
         logger.info(f"No medications found for user {st.session_state.user}.")
 
 def main():
+     # Initialize a variable to track the last run time
+    if 'last_mindsdb_run' not in st.session_state:
+        st.session_state.last_mindsdb_run = datetime.now()
+
+    # Check if 15 minutes have passed
+    if (datetime.now() - st.session_state.last_mindsdb_run).total_seconds() >= 840:
+        setup_mindsdb()
+        st.session_state.last_mindsdb_run = datetime.now()  # Update the last run time
+
     if st.session_state.user is None:
         if st.session_state.page == "login":
             login_page()
@@ -370,7 +390,6 @@ def main():
         elif st.session_state.page == "fill_form":
             fill_form_page()
         elif st.session_state.page == "query":
-            import query_handler
             query_handler.main()
 
 if __name__ == "__main__":

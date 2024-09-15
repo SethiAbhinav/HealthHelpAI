@@ -40,7 +40,7 @@ def fetch_medication_data(username):
 def generate_response(user_data, medications, query):
     name, dob, phone, diseases = user_data
     medication_info = "\n".join([f"Medication: {med[0]}, Dosage: {med[1]}, Time: {med[2]}, Stock: {med[3]}, Next Dose: {med[4]}" for med in medications])
-    prompt = f"User details:\nName: {name}\nDate of Birth: {dob}\nPhone: {phone}\nDiseases: {diseases}\n\nMedications:\n{medication_info}\n\nQuery: {query}\n\nProvide a detailed response considering the user's health conditions and medications."
+    prompt = f"User details:\nName: {name}\nDate of Birth: {dob}\nPhone: {phone}\nDiseases: {diseases}\n\nMedications:\n{medication_info}\n\nQuery: {query}\n\nProvide a concise response considering the user's health conditions and medications. Answer only in first person. Make it friendly and personalized."
     
     response = together_client.chat.completions.create(
         model="meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",

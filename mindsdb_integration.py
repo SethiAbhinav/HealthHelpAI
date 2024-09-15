@@ -46,8 +46,8 @@ def setup_mindsdb():
 
                 # Check if next_dose_time is within 15 minutes
                 next_dose_time = datetime.strptime(next_dose_time, '%Y-%m-%d %H:%M:%S')  # Convert string to datetime
-                if (next_dose_time - datetime.now()).total_seconds() < 900:  # 15 minutes = 900 seconds
-                    reminder_message = f"Please take 1 dose of {medication} at {next_dose_time}, as prescribed.\n\nYour current stock is {medication_stock}.\nHave a good day :D"
+                if (datetime.now() < next_dose_time) and (next_dose_time - datetime.now()).total_seconds() < 900:  # 15 minutes = 900 seconds
+                    reminder_message = f"Please take your dose of {medication} at {next_dose_time}, as prescribed.\n\nYour current stock is {medication_stock}.\nHave a good day :D"
                     print("crossed")
                     job_name = f'remind_dosage_{name}_{medication}'
                     try:
@@ -58,8 +58,7 @@ def setup_mindsdb():
                         logger.info('creating job')
                         project.create_job(
                                 job_name,
-                                f"INSERT INTO whatsapp_bot.messages (body, from_number, to_number) VALUES('{reminder_message}', 'whatsapp:{TWILIO_WHATSAPP}', 'whatsapp:+91{phone_number}')",
-                                repeat_str = '1 month'
+                                f"INSERT INTO whatsapp_bot.messages (body, from_number, to_number) VALUES('{reminder_message}', 'whatsapp:{TWILIO_WHATSAPP}', 'whatsapp:+91{phone_number} WHERE NOW() - sent_at > ')"
                             )
                         logger.info('Created job')
             except:
