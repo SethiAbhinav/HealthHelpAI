@@ -5,6 +5,7 @@ import hashlib
 import sqlite3
 from datetime import datetime, timedelta
 import logging
+from mindsdb_integration import setup_mindsdb
 import base64
 from read_presc import read_presc
 
@@ -15,35 +16,14 @@ logger = logging.getLogger(__name__)
 # Initialize session state
 if 'user' not in st.session_state:
     st.session_state.user = None
-    logger.debug("Session state initialized for user.")
 if 'page' not in st.session_state:
     st.session_state.page = "login"
-    logger.debug("Session state initialized for page.")
 
 # Database setup
 conn = sqlite3.connect('med_reminder.db')
 c = conn.cursor()
 
-# Create tables
-# c.execute('''CREATE TABLE IF NOT EXISTS users
-#              (username TEXT PRIMARY KEY, password TEXT)''') #mobile, gen, age
-
-# c.execute('''DROP TABLE IF EXISTS users''')
-# logger.info("Dropped existing users table.")
-# ... existing code ...
-
-# Add new columns to the existing users table if they do not exist
-try:
-    c.execute('''ALTER TABLE users ADD COLUMN name TEXT''')
-    c.execute('''ALTER TABLE users ADD COLUMN dob DATE''')
-    c.execute('''ALTER TABLE users ADD COLUMN phone TEXT''')
-    c.execute('''ALTER TABLE users ADD COLUMN diseases TEXT''')
-    conn.commit()
-    logger.info("Added new columns to users table.")
-except sqlite3.OperationalError as e:
-    logger.warning(f"Columns might already exist: {e}")
-
-# ... existing code ...
+# Create tables if they don't exist
 c.execute('''CREATE TABLE IF NOT EXISTS users
              (username TEXT PRIMARY KEY, 
               password TEXT,
@@ -54,11 +34,8 @@ c.execute('''CREATE TABLE IF NOT EXISTS users
 c.execute('''CREATE TABLE IF NOT EXISTS medications
              (id INTEGER PRIMARY KEY, username TEXT, name TEXT, dosage TEXT, time TEXT, stock INTEGER, next_dose DATETIME)''')
 conn.commit()
-logger.debug("Database tables created or checked.")
-
 
 def hash_password(password):
-    logger.debug("Password hashed successfully.")
     return hashlib.sha256(password.encode()).hexdigest()
 
 
@@ -75,10 +52,8 @@ def register_user(username, password, name, dob, phone, diseases):
         c.execute("INSERT INTO users (username, password, name, dob, phone, diseases) VALUES (?, ?, ?, ?, ?, ?)", 
                   (username, hash_password(password), name, dob, phone, diseases))
         conn.commit()
-        logger.info(f"User {username} registered successfully.")
         return True
     except sqlite3.IntegrityError:
-        logger.error(f"Failed to register user {username}. Username already exists.")
         return False
 
 
@@ -106,7 +81,6 @@ def save_medication(username, name, dosage, time, stock):
               (username, name, dosage, time_str, stock, next_dose))
 
     conn.commit()
-    logger.info(f"Medication {name} saved for user {username}.")
 
 def delete_medication(med_id):
     c.execute("DELETE FROM medications WHERE id = ?", (med_id,))
@@ -124,8 +98,7 @@ def get_medications(username):
 def update_medication_stock(med_id, new_stock):
     c.execute("UPDATE medications SET stock = ? WHERE id = ?", (new_stock, med_id))
     conn.commit()
-    logger.info(f"Stock updated for medication with ID {med_id}.")
-
+   
 def update_next_dose(med_id, next_dose):
     c.execute("UPDATE medications SET next_dose = ? WHERE id = ?", (next_dose, med_id))
     conn.commit()
@@ -164,7 +137,6 @@ def logout():
     st.success("Logged out successfully!")
     st.rerun()
     logger.info("User logged out successfully.")
-
 
 def register_page():
     st.title("Med Reminder App")
@@ -239,27 +211,6 @@ def input_selection_page():
         st.rerun()
         logger.info("User navigated back to home page from input selection.")
 
-# def upload_image_page():
-#     st.title("Upload Medication Image")
-    
-#     uploaded_file = st.file_uploader("Upload a photo of your medication", type=["jpg", "png", "jpeg"])
-#     if uploaded_file:
-#         image = Image.open(uploaded_file)
-#         st.image(image, caption="Uploaded Image", use_column_width=True)
-#         med_name, dosage, dosage_time = process_image(image)
-        
-#         # After processing, move to the form page to confirm or edit the information
-#         st.session_state.med_name = med_name
-#         st.session_state.dosage = dosage
-#         st.session_state.dosage_time = dosage_time
-#         st.session_state.page = "fill_form"
-#         st.rerun()
-#         logger.info("Image uploaded and processed for medication information.")
-    
-#     if st.button("Back"):
-#         st.session_state.page = "input_selection"
-#         st.rerun()
-#         logger.info("User navigated back to input selection from upload image page.")
 
 def upload_image_page():
     st.title("Upload Medication Image")
@@ -294,13 +245,31 @@ def fill_form_page():
     dosage = st.text_input("Dosage Quantity", value=st.session_state.get('dosage', ''))
     dosage_time = st.time_input("Dosage Time", value=st.session_state.get('dosage_time', ''))
     stock = st.number_input("Stock (number of tablets/doses)", min_value=0, step=1, value=0)
-    
+    is_valid = True
     if st.button("Save Medication"):
-        save_medication(st.session_state.user, med_name, dosage, dosage_time, stock)
-        st.success("Medication saved successfully!")
-        st.session_state.page = "home"
-        st.rerun()
-        logger.info(f"Medication {med_name} saved for user {st.session_state.user}.")
+        # Validation checks
+        if not med_name:
+            st.error("Medication name is required.")
+            logger.error("Validation error: Medication name is required.")
+            is_valid = False
+        
+        if not dosage:
+            st.error("Dosage quantity is required.")
+            logger.error("Validation error: Dosage quantity is required.")
+            is_valid = False
+        
+        if stock < 0:
+            st.error("Stock cannot be negative.")
+            logger.error("Validation error: Stock cannot be negative.")
+            is_valid = False
+        
+        if is_valid:
+            save_medication(st.session_state.user, med_name, dosage, dosage_time, stock)
+            st.success("Medication saved successfully!")
+            st.session_state.page = "home"
+            setup_mindsdb()
+            logger.info(f"Medication {med_name} saved for user {st.session_state.user}.")
+            st.rerun()
 
     if st.button("Back"):
         st.session_state.page = "input_selection"
@@ -327,7 +296,7 @@ def home_page():
         st.session_state.page = "query"
         st.rerun()
         logger.info(f"User {st.session_state.user} navigated to query page.")
-    
+
     st.header("Your Medications")
     medications = get_medications(st.session_state.user)
     if medications:
@@ -399,7 +368,6 @@ def main():
         elif st.session_state.page == "query":
             import query_handler
             query_handler.main()
-
 
 if __name__ == "__main__":
     main()
