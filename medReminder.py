@@ -118,7 +118,7 @@ def update_next_dose(med_id, next_dose):
 
 
 def login_page():
-    st.title("Med Reminder App")
+    st.title("Health Help AI")
     st.subheader("Login")
     username = st.text_input("Username", key="login_username")
     password = st.text_input("Password", type="password", key="login_password")
@@ -157,7 +157,7 @@ def logout():
     logger.info("User logged out successfully.")
 
 def register_page():
-    st.title("Med Reminder App")
+    st.title("Health Help AI")
     st.subheader("Register")
     username = st.text_input("Username", key="register_username")
     password = st.text_input("Password", type="password", key="register_password")
@@ -401,8 +401,8 @@ def main():
         setup_mindsdb()
         st.session_state.last_mindsdb_run = datetime.now()  # Update the last run time
 
-    if st.session_state.user is None:
-        check_session()
+    # if st.session_state.user is None:
+        # check_session()
 
     if st.session_state.page == "login":
         login_page()
