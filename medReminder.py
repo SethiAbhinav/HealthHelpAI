@@ -308,7 +308,11 @@ def home_page():
             with col1:
                 st.subheader(name)
                 st.write(f"Dosage: {dosage}")
-                st.write(f"Time: {time}")
+                # st.write(f"Time: {time}")
+                # Editable time input
+                time_list = time.split(',')
+                time_inputs = [st.time_input(f"Time for {name}", value=datetime.strptime(t, "%H:%M").time(), key=f"time_{med_id}_{i}") for i, t in enumerate(time_list)]
+          
             with col2:
                 st.write(f"Stock: {stock}")
                 new_stock = st.number_input(f"Update stock for {name}", min_value=0, value=stock, step=1, key=f"stock_{med_id}")
