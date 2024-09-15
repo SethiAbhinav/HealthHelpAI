@@ -9,6 +9,8 @@ from mindsdb_integration import setup_mindsdb
 import base64
 from read_presc import read_presc
 import query_handler
+from streamlit_cookies_controller import CookieController
+from time import sleep
 
 # Logging setup
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -120,12 +122,15 @@ def login_page():
     if st.button("Login"):
         user = authenticate(username, password)
         if user:
+            # Set a cookie with the user ID
+            cookie_controller.set("user_id", user)
             st.session_state.user = username
             st.session_state.name = user[2]
             st.session_state.dob = user[3]
             st.session_state.phone = user[4]
             st.session_state.diseases = user[5]
             st.session_state.page = "home"
+            sleep(0.5)  # Pause briefly before rerun
             st.rerun()
             logger.info(f"User {username} logged in successfully.")
         else:
@@ -139,9 +144,12 @@ def login_page():
         logger.info(f"User {username} navigated to register page.")
 
 def logout():
+    # Clear cookie by setting it to an empty value with a past expiration
+    cookie_controller.set("user_id", "", max_age=0)
     st.session_state.user = None
     st.session_state.page = "login"
     st.success("Logged out successfully!")
+    sleep(0.5)  # Pause briefly before rerun
     st.rerun()
     logger.info("User logged out successfully.")
 
@@ -365,6 +373,21 @@ def home_page():
         st.write("You haven't added any medications yet.")
         logger.info(f"No medications found for user {st.session_state.user}.")
 
+def check_session():
+    # Check if the user_id cookie exists
+    user = cookie_controller.get("user_id")
+    if user:
+        # Restore session
+        st.session_state.user = user[0]
+        st.session_state.name = user[2]
+        st.session_state.dob = user[3]
+        st.session_state.phone = user[4]
+        st.session_state.diseases = user[5]
+        st.session_state.page = "home"
+        st.success("Session restored!")
+    else:
+        st.session_state.page = "login"
+
 def main():
      # Initialize a variable to track the last run time
     if 'last_mindsdb_run' not in st.session_state:
@@ -376,21 +399,22 @@ def main():
         st.session_state.last_mindsdb_run = datetime.now()  # Update the last run time
 
     if st.session_state.user is None:
-        if st.session_state.page == "login":
-            login_page()
-        elif st.session_state.page == "register":
-            register_page()
-    else:
-        if st.session_state.page == "home":
-            home_page()
-        elif st.session_state.page == "input_selection":
-            input_selection_page()
-        elif st.session_state.page == "upload_image":
-            upload_image_page()
-        elif st.session_state.page == "fill_form":
-            fill_form_page()
-        elif st.session_state.page == "query":
-            query_handler.main()
+        check_session()
+
+    if st.session_state.page == "login":
+        login_page()
+    elif st.session_state.page == "register":
+        register_page()
+    elif st.session_state.page == "home":
+        home_page()
+    elif st.session_state.page == "input_selection":
+        input_selection_page()
+    elif st.session_state.page == "upload_image":
+        upload_image_page()
+    elif st.session_state.page == "fill_form":
+        fill_form_page()
+    elif st.session_state.page == "query":
+        query_handler.main()
 
 if __name__ == "__main__":
     main()
