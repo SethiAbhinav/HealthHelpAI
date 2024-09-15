@@ -1,12 +1,12 @@
 # MedReminder
 
 ## Overview
-MedReminder is a simple and effective web application designed to help users keep track of their medications. It allows users to log in, register, and manage their medication schedules, including adding, updating, and deleting medications. The application also supports image uploads for prescription recognition and integrates with MindsDB for health queries.
+MedReminder is a simple and effective web application designed to help users keep track of their medications. It allows users to log in, register, and manage their medication schedules, including adding, updating, and deleting medications. The application also supports image uploads for prescription recognition and integrates with MindsDB for health queries. The user receives a WhatsApp message as a reminder to take his medicine dose.
 
 ## Features
 - User authentication (login and registration)
 - Medication management (add, update, delete)
-- Upload prescription images for automatic medication extraction
+- Upload prescription images for automatic medication and dosage extraction
 - Health query feature powered by AI
 - User-friendly interface built with Streamlit
 
@@ -16,7 +16,8 @@ MedReminder is a simple and effective web application designed to help users kee
 - **Frontend**: Streamlit
 - **Backend**: SQLite for database management
 - **Image Processing**: PIL for image handling
-- **AI Integration**: Together.ai for prescription reading and health queries
+- **AI Integration**: Upstage's Document parser for prescription reading.
+- **AI Integration**: Together.ai for using Meta-Llama-3.1 to extract key information from the prescription's parsed data.
 - **Logging**: Python's built-in logging module
 <img width="879" alt="Screenshot 2024-09-16 at 5 03 56 AM" src="https://github.com/user-attachments/assets/4601c651-a9ab-4daa-8011-d89a69a73dd6">
 
@@ -40,8 +41,8 @@ MedReminder is a simple and effective web application designed to help users kee
 ## Usage
 - **Register**: Create a new account by providing a username, password, name, date of birth, phone number, and any diseases.
 - **Login**: Access your account using your username and password.
-- **Manage Medications**: Add new medications by filling out a form or uploading an image of your prescription.
-- **Health Queries**: Ask health-related questions based on your medication data.
+- **Manage Medications**: Add new medications by filling out a form or automate it by uploading an image of your prescription.
+- **Health Queries**: Get your health-related questions answered based on your medication and health profile.
 
 ## Contributing
 Contributions are welcome! Please open an issue or submit a pull request for any enhancements or bug fixes.
