@@ -51,4 +51,4 @@ Contributions are welcome! Please open an issue or submit a pull request for any
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
-- Thanks to the developers of Streamlit, Together.ai, and MindsDB for their amazing tools and libraries.
+- Thanks to the developers of Streamlit, Together.ai, Upstage and MindsDB for their amazing tools and libraries.
