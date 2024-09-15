@@ -16,6 +16,9 @@ from time import sleep
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+# Initialize the cookies controller
+cookie_controller = CookieController()
+
 # Initialize session state
 if 'user' not in st.session_state:
     st.session_state.user = None
