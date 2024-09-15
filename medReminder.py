@@ -1,10 +1,11 @@
 import streamlit as st
 import pandas as pd
-# from PIL import Image
+from PIL import Image
 import hashlib
 import sqlite3
 from datetime import datetime, timedelta
 import logging
+from mindsdb_integration import setup_mindsdb
 
 # Logging setup
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -13,35 +14,14 @@ logger = logging.getLogger(__name__)
 # Initialize session state
 if 'user' not in st.session_state:
     st.session_state.user = None
-    logger.debug("Session state initialized for user.")
 if 'page' not in st.session_state:
     st.session_state.page = "login"
-    logger.debug("Session state initialized for page.")
 
 # Database setup
 conn = sqlite3.connect('med_reminder.db')
 c = conn.cursor()
 
-# Create tables
-# c.execute('''CREATE TABLE IF NOT EXISTS users
-#              (username TEXT PRIMARY KEY, password TEXT)''') #mobile, gen, age
-
-# c.execute('''DROP TABLE IF EXISTS users''')
-# logger.info("Dropped existing users table.")
-# ... existing code ...
-
-# Add new columns to the existing users table if they do not exist
-try:
-    c.execute('''ALTER TABLE users ADD COLUMN name TEXT''')
-    c.execute('''ALTER TABLE users ADD COLUMN dob DATE''')
-    c.execute('''ALTER TABLE users ADD COLUMN phone TEXT''')
-    c.execute('''ALTER TABLE users ADD COLUMN diseases TEXT''')
-    conn.commit()
-    logger.info("Added new columns to users table.")
-except sqlite3.OperationalError as e:
-    logger.warning(f"Columns might already exist: {e}")
-
-# ... existing code ...
+# Create tables if they don't exist
 c.execute('''CREATE TABLE IF NOT EXISTS users
              (username TEXT PRIMARY KEY, 
               password TEXT,
@@ -52,46 +32,21 @@ c.execute('''CREATE TABLE IF NOT EXISTS users
 c.execute('''CREATE TABLE IF NOT EXISTS medications
              (id INTEGER PRIMARY KEY, username TEXT, name TEXT, dosage TEXT, time TEXT, stock INTEGER, next_dose DATETIME)''')
 conn.commit()
-logger.debug("Database tables created or checked.")
-
 
 def hash_password(password):
-    logger.debug("Password hashed successfully.")
     return hashlib.sha256(password.encode()).hexdigest()
-
-# def authenticate(username, password):
-#     c.execute("SELECT * FROM users WHERE username=? AND password=?", (username, hash_password(password)))
-#     user = c.fetchone()
-#     if user:
-#         logger.info(f"User {username} authenticated successfully.")
-#     return user is not None
 
 def authenticate(username, password):
     c.execute("SELECT * FROM users WHERE username=? AND password=?", (username, hash_password(password)))
-    user = c.fetchone()
-    if user:
-        logger.info(f"User {username} authenticated successfully.")
-    return user
-    
-# def register_user(username, password):
-#     try:
-#         c.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, hash_password(password)))
-#         conn.commit()
-#         logger.info(f"User {username} registered successfully.")
-#         return True
-#     except sqlite3.IntegrityError:
-#         logger.error(f"Failed to register user {username}. Username already exists.")
-#         return False
+    return c.fetchone()
 
 def register_user(username, password, name, dob, phone, diseases):
     try:
         c.execute("INSERT INTO users (username, password, name, dob, phone, diseases) VALUES (?, ?, ?, ?, ?, ?)", 
                   (username, hash_password(password), name, dob, phone, diseases))
         conn.commit()
-        logger.info(f"User {username} registered successfully.")
         return True
     except sqlite3.IntegrityError:
-        logger.error(f"Failed to register user {username}. Username already exists.")
         return False
 
 def save_medication(username, name, dosage, time, stock):
@@ -101,45 +56,18 @@ def save_medication(username, name, dosage, time, stock):
     c.execute("INSERT INTO medications (username, name, dosage, time, stock, next_dose) VALUES (?, ?, ?, ?, ?, ?)",
               (username, name, dosage, time.strftime("%H:%M"), stock, next_dose))
     conn.commit()
-    logger.info(f"Medication {name} saved for user {username}.")
 
 def get_medications(username):
     c.execute("SELECT * FROM medications WHERE username=?", (username,))
-    medications = c.fetchall()
-    if medications:
-        logger.info(f"Retrieved medications for user {username}.")
-    return medications
+    return c.fetchall()
 
 def update_medication_stock(med_id, new_stock):
     c.execute("UPDATE medications SET stock = ? WHERE id = ?", (new_stock, med_id))
     conn.commit()
-    logger.info(f"Stock updated for medication with ID {med_id}.")
-
+   
 def update_next_dose(med_id, next_dose):
     c.execute("UPDATE medications SET next_dose = ? WHERE id = ?", (next_dose, med_id))
     conn.commit()
-    logger.info(f"Next dose updated for medication with ID {med_id}.")
-
-# def login_page():
-#     st.title("Med Reminder App")
-#     st.subheader("Login")
-#     username = st.text_input("Username", key="login_username")
-#     password = st.text_input("Password", type="password", key="login_password")
-#     if st.button("Login"):
-#         if authenticate(username, password):
-#             st.session_state.user = username
-#             st.session_state.page = "home"
-#             st.rerun()
-#             logger.info(f"User {username} logged in successfully.")
-#         else:
-#             st.error("Invalid username or password")
-#             logger.error(f"Login attempt failed for user {username}.")
-
-#     st.write("Don't have an account?")
-#     if st.button("Register"):
-#         st.session_state.page = "register"
-#         st.rerun()
-#         logger.info(f"User {username} navigated to register page.")
 
 def login_page():
     st.title("Med Reminder App")
@@ -173,26 +101,6 @@ def logout():
     st.success("Logged out successfully!")
     st.rerun()
     logger.info("User logged out successfully.")
-
-# def register_page():
-#     st.title("Med Reminder App")
-#     st.subheader("Register")
-#     username = st.text_input("Username", key="register_username")
-#     password = st.text_input("Password", type="password", key="register_password")
-#     if st.button("Register"):
-#         if register_user(username, password):
-#             st.success("Registered successfully! Please log in.")
-#             st.session_state.page = "login"
-#             st.rerun()
-#             logger.info(f"User {username} registered successfully.")
-#         else:
-#             st.error("Username already exists")
-#             logger.error(f"Registration attempt failed for user {username}. Username already exists.")
-    
-#     if st.button("Back to Login"):
-#         st.session_state.page = "login"
-#         st.rerun()
-#         logger.info(f"User navigated back to login page from register page.")
 
 def register_page():
     st.title("Med Reminder App")
@@ -274,131 +182,41 @@ def fill_form_page():
     dosage = st.text_input("Dosage Quantity", value=st.session_state.get('dosage', ''))
     dosage_time = st.time_input("Dosage Time", value=st.session_state.get('dosage_time', datetime.now().time()))
     stock = st.number_input("Stock (number of tablets/doses)", min_value=0, step=1, value=0)
-    
+    is_valid = True
     if st.button("Save Medication"):
-        save_medication(st.session_state.user, med_name, dosage, dosage_time, stock)
-        st.success("Medication saved successfully!")
-        st.session_state.page = "home"
-        st.rerun()
-        logger.info(f"Medication {med_name} saved for user {st.session_state.user}.")
+        # Validation checks
+        if not med_name:
+            st.error("Medication name is required.")
+            logger.error("Validation error: Medication name is required.")
+            is_valid = False
+        
+        if not dosage:
+            st.error("Dosage quantity is required.")
+            logger.error("Validation error: Dosage quantity is required.")
+            is_valid = False
+        
+        if stock < 0:
+            st.error("Stock cannot be negative.")
+            logger.error("Validation error: Stock cannot be negative.")
+            is_valid = False
+        
+        if is_valid:
+            save_medication(st.session_state.user, med_name, dosage, dosage_time, stock)
+            st.success("Medication saved successfully!")
+            st.session_state.page = "home"
+            setup_mindsdb()
+            logger.info(f"Medication {med_name} saved for user {st.session_state.user}.")
+            st.rerun()
 
     if st.button("Back"):
         st.session_state.page = "input_selection"
         st.rerun()
         logger.info("User navigated back to input selection from fill form page.")
 
-# def home_page():
-#     st.title(f"Welcome to Med Reminder, {st.session_state.user}!")
-    
-#     if st.button("Logout"):
-#         logout()
-#         logger.info(f"User {st.session_state.user} logged out.")
-    
-#     if st.button("Add New Medication"):
-#         st.session_state.page = "input_selection"
-#         st.rerun()
-#         logger.info(f"User {st.session_state.user} navigated to add new medication page.")
-    
-#     st.header("Your Medications")
-#     medications = get_medications(st.session_state.user)
-#     if medications:
-#         for med in medications:
-#             med_id, _, name, dosage, time, stock, next_dose = med
-#             col1, col2, col3 = st.columns(3)
-#             with col1:
-#                 st.subheader(name)
-#                 st.write(f"Dosage: {dosage}")
-#                 st.write(f"Time: {time}")
-#             with col2:
-#                 st.write(f"Stock: {stock}")
-#                 new_stock = st.number_input(f"Update stock for {name}", min_value=0, value=stock, step=1, key=f"stock_{med_id}")
-#                 if new_stock != stock:
-#                     update_medication_stock(med_id, new_stock)
-#                     st.success(f"Stock updated for {name}")
-#                     logger.info(f"Stock updated for {name} to {new_stock}.")
-#             with col3:
-#                 st.write(f"Next dose: {next_dose}")
-#                 if st.button(f"Take dose of {name}"):
-#                     if stock > 0:
-#                         new_stock = stock - 1
-#                         update_medication_stock(med_id, new_stock)
-#                         next_dose = datetime.strptime(str(next_dose), "%Y-%m-%d %H:%M:%S") + timedelta(days=1)
-#                         update_next_dose(med_id, next_dose)
-#                         st.success(f"Dose taken. Stock updated to {new_stock}")
-#                         logger.info(f"Dose taken for {name}. Stock updated to {new_stock}.")
-#                     else:
-#                         st.error("No stock left. Please refill your medication.")
-#                         logger.error(f"No stock left for {name}.")
-#             st.markdown("---")
-#     else:
-#         st.write("You haven't added any medications yet.")
-#         logger.info(f"No medications found for user {st.session_state.user}.")
-
-# def home_page():
-#     st.title(f"Welcome to Med Reminder, {st.session_state.name}!")
-#     st.write(f"Date of Birth: {st.session_state.dob}")
-#     st.write(f"Phone Number: {st.session_state.phone}")
-#     st.write(f"Diseases: {st.session_state.diseases}")
-    
-#     if st.button("Logout"):
-#         logout()
-#         logger.info(f"User {st.session_state.user} logged out.")
-    
-#     if st.button("Add New Medication"):
-#         st.session_state.page = "input_selection"
-#         st.rerun()
-#         logger.info(f"User {st.session_state.user} navigated to add new medication page.")
-    
-#     st.header("Your Medications")
-#     medications = get_medications(st.session_state.user)
-#     if medications:
-#         for med in medications:
-#             med_id, _, name, dosage, time, stock, next_dose = med
-#             col1, col2, col3 = st.columns(3)
-#             with col1:
-#                 st.subheader(name)
-#                 st.write(f"Dosage: {dosage}")
-#                 st.write(f"Time: {time}")
-#             with col2:
-#                 st.write(f"Stock: {stock}")
-#                 new_stock = st.number_input(f"Update stock for {name}", min_value=0, value=stock, step=1, key=f"stock_{med_id}")
-#                 if new_stock != stock:
-#                     update_medication_stock(med_id, new_stock)
-#                     st.success(f"Stock updated for {name}")
-#                     logger.info(f"Stock updated for {name} to {new_stock}.")
-#             with col3:
-#                 st.write(f"Next dose: {next_dose}")
-#                 if st.button(f"Take dose of {name}"):
-#                     if stock > 0:
-#                         new_stock = stock - 1
-#                         update_medication_stock(med_id, new_stock)
-#                         next_dose = datetime.strptime(str(next_dose), "%Y-%m-%d %H:%M:%S") + timedelta(days=1)
-#                         update_next_dose(med_id, next_dose)
-#                         st.success(f"Dose taken. Stock updated to {new_stock}")
-#                         logger.info(f"Dose taken for {name}. Stock updated to {new_stock}.")
-#                     else:
-#                         st.error("No stock left. Please refill your medication.")
-#                         logger.error(f"No stock left for {name}.")
-#             st.markdown("---")
-#     else:
-#         st.write("You haven't added any medications yet.")
-#         logger.info(f"No medications found for user {st.session_state.user}.")
-
-# def main():
-#     if st.session_state.user is None:
-#         if st.session_state.page == "login":
-#             login_page()
-#         elif st.session_state.page == "register":
-#             register_page()
-#     else:
-#         if st.session_state.page == "home":
-#             home_page()
-#         elif st.session_state.page == "input_selection":
-#             input_selection_page()
-#         elif st.session_state.page == "upload_image":
-#             upload_image_page()
-#         elif st.session_state.page == "fill_form":
-#             fill_form_page()
+def delete_medication(med_id):
+    c.execute("DELETE FROM medications WHERE id = ?", (med_id,))
+    conn.commit()
+    logger.info(f"Medication with ID {med_id} deleted.")
 
 def home_page():
     st.title(f"Welcome to Med Reminder, {st.session_state.name}!")
@@ -419,7 +237,7 @@ def home_page():
         st.session_state.page = "query"
         st.rerun()
         logger.info(f"User {st.session_state.user} navigated to query page.")
-    
+
     st.header("Your Medications")
     medications = get_medications(st.session_state.user)
     if medications:
@@ -450,6 +268,10 @@ def home_page():
                     else:
                         st.error("No stock left. Please refill your medication.")
                         logger.error(f"No stock left for {name}.")
+            if st.button(f"Delete {name}", key=f"delete_{med_id}"):
+                delete_medication(med_id)
+                st.success(f"{name} has been deleted.")
+                st.rerun()
             st.markdown("---")
     else:
         st.write("You haven't added any medications yet.")
@@ -473,7 +295,6 @@ def main():
         elif st.session_state.page == "query":
             import query_handler
             query_handler.main()
-
 
 if __name__ == "__main__":
     main()
