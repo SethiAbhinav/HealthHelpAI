@@ -1,4 +1,4 @@
-# MedReminder
+# HealthHelpAI
 
 ## Overview
 HealthHelpAI is a user-friendly web application designed to help users manage and track their medication schedules with ease. The app provides key features such as automatic prescription analysis and personalized health query responses powered by AI. Additionally, users receive timely WhatsApp reminders for their medications, ensuring they never miss a dose.
