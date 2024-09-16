@@ -291,7 +291,7 @@ def fill_form_page():
         logger.info("User navigated back to input selection from fill form page.")
 
 def home_page():
-    st.title(f"Welcome to Med Reminder, {st.session_state.name}!")
+    st.title(f"Welcome to HealthHelpAI, {st.session_state.name}!")
     st.write(f"Date of Birth: {st.session_state.dob}")
     st.write(f"Phone Number: {st.session_state.phone}")
     st.write(f"Diseases: {st.session_state.diseases}")
