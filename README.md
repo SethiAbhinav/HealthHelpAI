@@ -20,6 +20,8 @@ HealthHelpAI is a user-friendly web application designed to help users manage an
 -    Upstage's Document parser for prescription reading.
 -    Together.ai: Utilizes LLM's to process and extract information from prescription data and answer user health queries.
 - **Logging**: Python's built-in logging module
+<img width="704" alt="Screenshot 2024-09-16 at 6 01 52 AM" src="https://github.com/user-attachments/assets/6e41d020-1828-45f2-b18f-9c0ecff47c12">
+
 
 <img width="879" alt="Screenshot 2024-09-16 at 5 03 56 AM" src="https://github.com/user-attachments/assets/4601c651-a9ab-4daa-8011-d89a69a73dd6">
 
