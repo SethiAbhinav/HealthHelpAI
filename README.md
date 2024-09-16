@@ -10,8 +10,8 @@ HealthHelpAI is a user-friendly web application designed to help users manage an
 - AI-Powered Health Queries: Get personalized answers to health-related queries based on user data.
 - WhatsApp Reminders: Receive automated medication reminders via WhatsApp 15 minutes before each dose.
 - Streamlined Interface: Simple and intuitive UI built using Streamlit for seamless interaction.
-
-<img width="943" alt="Screenshot 2024-09-16 at 5 02 30 AM" src="https://github.com/user-attachments/assets/635c225e-7a3b-46ca-9fc6-ae5038638688">
+  
+<img width="875" alt="Screenshot 2024-09-16 at 5 42 10 AM" src="https://github.com/user-attachments/assets/04af3867-79c8-480c-bfad-0267d4410ad6">
 
 ## Technologies Used
 - **Frontend**: Streamlit
