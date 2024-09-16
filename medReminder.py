@@ -386,7 +386,9 @@ def check_session():
         st.session_state.page = "home"
         st.success("Session restored!")
     else:
-        st.session_state.page = "login"
+        if st.session_state.page != "register":
+            st.session_state.page = "login"
+        
 
 def main():
      # Initialize a variable to track the last run time
@@ -398,8 +400,8 @@ def main():
         setup_mindsdb()
         st.session_state.last_mindsdb_run = datetime.now()  # Update the last run time
 
-    # if st.session_state.user is None:
-        # check_session()
+    if st.session_state.user is None:
+        check_session()
 
     if st.session_state.page == "login":
         login_page()
