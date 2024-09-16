@@ -16,7 +16,6 @@ HealthHelpAI is a user-friendly web application designed to help users manage an
 ## Technologies Used
 - **Frontend**: Streamlit
 - **Backend**: SQLite for efficient and lightweight database management.
-- **Image Processing**: PIL for image handling
 - **AI Integration**:
 -    Upstage's Document parser for prescription reading.
 -    Together.ai: Utilizes LLM's to process and extract information from prescription data and answer user health queries.
