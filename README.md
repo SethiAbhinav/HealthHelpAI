@@ -39,7 +39,7 @@ HealthHelpAI is a user-friendly web application designed to help users manage an
 
 3. Run the application:
    ```
-   streamlit run medReminder.py
+   streamlit run healthHelpAI.py
    ```
 
 ## Usage
