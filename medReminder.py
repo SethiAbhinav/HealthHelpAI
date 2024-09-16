@@ -67,21 +67,18 @@ def save_medication(username, name, dosage, time, stock):
     next_dose = None
     if time:  # Check if time is not empty
         # Convert time strings to datetime objects
-        time_objects = [datetime.now().replace(hour=int(t.split(':')[0]), minute=int(t.split(':')[1]), second=0, microsecond=0) for t in time]
+        if isinstance(time, list):
+            time_objects = [datetime.now().replace(hour=int(t.split(':')[0]), minute=int(t.split(':')[1]), second=0, microsecond=0) for t in time]
+        else:
+            time_objects = [datetime.now().replace(hour=int(time.hour), minute=int(time.minute), second=0, microsecond=0)]
         # Find the nearest next dose time
         next_dose = min([t for t in time_objects if t > datetime.now()], default=None)
         if next_dose is None:  # If no future time found, add a day
             next_dose = min(time_objects) + timedelta(days=1)
 
     print("next_dose save_med",type(next_dose),next_dose)
-    # if time:
-    #     next_dose = datetime.now().replace(hour=time.hour, minute=time.minute, second=0, microsecond=0)
-    #     if next_dose <= datetime.now():
-    #         next_dose += timedelta(days=1)
-    # c.execute("INSERT INTO medications (username, name, dosage, time, stock, next_dose) VALUES (?, ?, ?, ?, ?, ?)",
-    #           (username, name, dosage, time.strftime("%H:%M") if time else None, stock, next_dose))
-    
-    time_str = ','.join(time) if isinstance(time, list) else time
+
+    time_str = ','.join(time) if isinstance(time, list) else time.strftime('%H:%M')
 
     c.execute("INSERT INTO medications (username, name, dosage, time, stock, next_dose) VALUES (?, ?, ?, ?, ?, ?)",
               (username, name, dosage, time_str, stock, next_dose))
