@@ -29,7 +29,7 @@ HealthHelpAI is a user-friendly web application designed to help users manage an
 1. Clone the repository:
    ```
    git clone https://github.com/SethiAbhinav/HealthHelpAI
-   cd MedReminder
+   cd HealthHelpAI
    ```
 
 2. Install the required packages:
